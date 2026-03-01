@@ -61,6 +61,13 @@ fn main() {
             let torrent_path = &args[4];
             commands::download(torrent_path, output_path)
         }
+        "magnet_parse" => {
+            if args.len() < 3 {
+                eprintln!("Usage: {} magnet_parse <magnet-link>", args[0]);
+                std::process::exit(1);
+            }
+            commands::magnet_parse(&args[2])
+        }
         _ => {
             println!("unknown command: {}", command);
             return;
