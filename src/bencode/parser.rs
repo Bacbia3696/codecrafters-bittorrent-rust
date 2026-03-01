@@ -1,4 +1,4 @@
-use super::value::BencodeValue;
+use super::value::{BencodeKind, BencodeValue};
 
 /// Parser for bencoded data
 pub struct BencodeParser<'a> {
@@ -21,20 +21,31 @@ impl<'a> BencodeParser<'a> {
         byte
     }
 
-    /// Parse a bencoded value
+    /// Get current position
+    fn pos(&self) -> usize {
+        self.pos
+    }
+
+    /// Parse a bencode value, tracking raw bytes
     pub fn parse(&mut self) -> Result<BencodeValue, String> {
-        match self.peek() {
-            Some(b'i') => self.parse_integer(),
-            Some(b'l') => self.parse_list(),
-            Some(b'd') => self.parse_dictionary(),
-            Some(b) if b.is_ascii_digit() => self.parse_string(),
-            Some(b) => Err(format!("Unexpected byte: {}", b)),
-            None => Err("Unexpected end of data".to_string()),
-        }
+        let start = self.pos();
+        let kind = match self.peek() {
+            Some(b'i') => self.parse_integer()?,
+            Some(b'l') => self.parse_list()?,
+            Some(b'd') => self.parse_dictionary()?,
+            Some(b) if b.is_ascii_digit() => self.parse_string()?,
+            Some(b) => return Err(format!("Unexpected byte: {}", b)),
+            None => return Err("Unexpected end of data".to_string()),
+        };
+        let end = self.pos();
+
+        // Capture the raw bytes for this value
+        let raw_bytes = self.data[start..end].to_vec();
+        Ok(BencodeValue::new(kind, raw_bytes))
     }
 
     /// Parse an integer: i<number>e
-    fn parse_integer(&mut self) -> Result<BencodeValue, String> {
+    fn parse_integer(&mut self) -> Result<BencodeKind, String> {
         self.advance(); // consume 'i'
 
         let start = self.pos;
@@ -54,11 +65,11 @@ impl<'a> BencodeParser<'a> {
             .parse::<i64>()
             .map_err(|_| format!("Invalid integer: {}", num_str))?;
 
-        Ok(BencodeValue::Integer(num))
+        Ok(BencodeKind::Integer(num))
     }
 
     /// Parse a string: <length>:<data>
-    fn parse_string(&mut self) -> Result<BencodeValue, String> {
+    fn parse_string(&mut self) -> Result<BencodeKind, String> {
         let colon_pos = self.data[self.pos..]
             .iter()
             .position(|&b| b == b':')
@@ -75,11 +86,11 @@ impl<'a> BencodeParser<'a> {
         let start = self.pos;
         self.pos += length;
 
-        Ok(BencodeValue::String(self.data[start..self.pos].to_vec()))
+        Ok(BencodeKind::String(self.data[start..self.pos].to_vec()))
     }
 
     /// Parse a list: l<elements>e
-    fn parse_list(&mut self) -> Result<BencodeValue, String> {
+    fn parse_list(&mut self) -> Result<BencodeKind, String> {
         self.advance(); // consume 'l'
 
         let mut elements = Vec::new();
@@ -88,11 +99,11 @@ impl<'a> BencodeParser<'a> {
         }
 
         self.advance(); // consume 'e'
-        Ok(BencodeValue::List(elements))
+        Ok(BencodeKind::List(elements))
     }
 
     /// Parse a dictionary: d<key1><value1>...e
-    fn parse_dictionary(&mut self) -> Result<BencodeValue, String> {
+    fn parse_dictionary(&mut self) -> Result<BencodeKind, String> {
         self.advance(); // consume 'd'
 
         let mut entries = Vec::new();
@@ -108,7 +119,7 @@ impl<'a> BencodeParser<'a> {
         }
 
         self.advance(); // consume 'e'
-        Ok(BencodeValue::Dictionary(entries))
+        Ok(BencodeKind::Dictionary(entries))
     }
 }
 
