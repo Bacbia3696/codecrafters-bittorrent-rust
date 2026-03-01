@@ -12,7 +12,7 @@ pub fn info(torrent_path: &str) -> Result<(), String> {
         .ok_or("Missing 'announce' key")?;
 
     let info = value.get("info").ok_or("Missing 'info' key")?;
-    
+
     let length = info
         .get("length")
         .and_then(|v| v.as_integer())
@@ -35,10 +35,7 @@ pub fn info(torrent_path: &str) -> Result<(), String> {
         .ok_or("Missing 'info.pieces' key")?;
 
     // Parse piece hashes (each hash is 20 bytes)
-    let piece_hashes: Vec<String> = pieces
-        .chunks(20)
-        .map(|chunk| hex::encode(chunk))
-        .collect();
+    let piece_hashes: Vec<String> = pieces.chunks(20).map(hex::encode).collect();
 
     println!("Tracker URL: {}", announce);
     println!("Length: {}", length);

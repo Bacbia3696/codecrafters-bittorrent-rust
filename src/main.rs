@@ -15,6 +15,7 @@ fn main() {
     let result = match command.as_str() {
         "decode" => commands::decode(&args[2]),
         "info" => commands::info(&args[2]),
+        "peers" => commands::peers(&args[2]),
         _ => {
             println!("unknown command: {}", command);
             return;
