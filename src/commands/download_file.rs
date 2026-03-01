@@ -55,7 +55,7 @@ pub fn download(torrent_path: &str, output_path: &str) -> Result<(), String> {
     let info_hash = Sha1::digest(info_bytes);
 
     // Calculate number of pieces
-    let num_pieces = (file_length + piece_length as u64 - 1) / piece_length as u64;
+    let num_pieces = file_length.div_ceil(piece_length as u64);
     println!("File size: {} bytes", file_length);
     println!("Piece length: {} bytes", piece_length);
     println!("Number of pieces: {}", num_pieces);
@@ -69,10 +69,10 @@ pub fn download(torrent_path: &str, output_path: &str) -> Result<(), String> {
 
     // Download all pieces
     let mut all_piece_data = Vec::with_capacity(file_length as usize);
-    
+
     for piece_index in 0..num_pieces {
         println!("Downloading piece {}/{}...", piece_index, num_pieces - 1);
-        
+
         // Calculate this piece's size
         let this_piece_size = if piece_index == num_pieces - 1 {
             // Last piece
@@ -99,7 +99,10 @@ pub fn download(torrent_path: &str, output_path: &str) -> Result<(), String> {
                     break;
                 }
                 Err(e) => {
-                    eprintln!("Failed to download piece {} from {}: {}", piece_index, peer, e);
+                    eprintln!(
+                        "Failed to download piece {} from {}: {}",
+                        piece_index, peer, e
+                    );
                     continue;
                 }
             }
@@ -129,8 +132,8 @@ pub fn download(torrent_path: &str, output_path: &str) -> Result<(), String> {
     }
 
     // Write to output file
-    let mut file = File::create(output_path)
-        .map_err(|e| format!("Failed to create output file: {}", e))?;
+    let mut file =
+        File::create(output_path).map_err(|e| format!("Failed to create output file: {}", e))?;
     file.write_all(&all_piece_data)
         .map_err(|e| format!("Failed to write output file: {}", e))?;
 
@@ -161,8 +164,8 @@ fn get_peers(announce: &str, info_hash: &[u8], left: u64) -> Result<Vec<String>,
     let peer_id = generate_peer_id();
     let url = build_tracker_url(announce, info_hash, &peer_id, left)?;
 
-    let response = reqwest::blocking::get(&url)
-        .map_err(|e| format!("Failed to contact tracker: {}", e))?;
+    let response =
+        reqwest::blocking::get(&url).map_err(|e| format!("Failed to contact tracker: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!("Tracker returned status: {}", response.status()));
@@ -175,7 +178,10 @@ fn get_peers(announce: &str, info_hash: &[u8], left: u64) -> Result<Vec<String>,
     let response_value = decode_bencode(&response_bytes)?;
 
     // Check for failure message
-    if let Some(failure) = response_value.get("failure reason").and_then(|v| v.as_string()) {
+    if let Some(failure) = response_value
+        .get("failure reason")
+        .and_then(|v| v.as_string())
+    {
         return Err(format!("Tracker error: {}", failure));
     }
 
@@ -188,7 +194,12 @@ fn get_peers(announce: &str, info_hash: &[u8], left: u64) -> Result<Vec<String>,
 }
 
 /// Build tracker URL
-fn build_tracker_url(announce: &str, info_hash: &[u8], peer_id: &str, left: u64) -> Result<String, String> {
+fn build_tracker_url(
+    announce: &str,
+    info_hash: &[u8],
+    peer_id: &str,
+    left: u64,
+) -> Result<String, String> {
     let info_hash_encoded = url_encode_binary(info_hash);
     let peer_id_encoded = url_encode_string(peer_id);
 
@@ -233,7 +244,7 @@ fn generate_peer_id() -> String {
 fn parse_compact_peers(data: &[u8]) -> Result<Vec<String>, String> {
     const PEER_SIZE: usize = 6;
 
-    if data.len() % PEER_SIZE != 0 {
+    if !data.len().is_multiple_of(PEER_SIZE) {
         return Err(format!("Invalid peers data length: {}", data.len()));
     }
 
@@ -256,8 +267,7 @@ fn download_piece_from_peer(
     expected_hash: &[u8; 20],
 ) -> Result<Vec<u8>, String> {
     // Connect to peer
-    let mut stream = TcpStream::connect(peer)
-        .map_err(|e| format!("Failed to connect: {}", e))?;
+    let mut stream = TcpStream::connect(peer).map_err(|e| format!("Failed to connect: {}", e))?;
 
     stream
         .set_read_timeout(Some(Duration::from_secs(30)))
@@ -394,9 +404,9 @@ fn download_piece_from_peer(
 fn generate_peer_id_bytes() -> [u8; 20] {
     let mut peer_id = [0u8; 20];
     peer_id[0..8].copy_from_slice(b"-BR0001-");
-    for i in 8..20 {
+    (8..20).for_each(|i| {
         peer_id[i] = (i as u8) + 1;
-    }
+    });
     peer_id
 }
 
