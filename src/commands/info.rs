@@ -11,20 +11,43 @@ pub fn info(torrent_path: &str) -> Result<(), String> {
         .and_then(|v| v.as_string())
         .ok_or("Missing 'announce' key")?;
 
-    let length = value
-        .get("info")
-        .and_then(|info| info.get("length"))
+    let info = value.get("info").ok_or("Missing 'info' key")?;
+    
+    let length = info
+        .get("length")
         .and_then(|v| v.as_integer())
         .ok_or("Missing 'info.length' key")?;
 
     // Get the raw bytes of the info dictionary and compute SHA-1 hash
-    let info = value.get("info").ok_or("Missing 'info' key")?;
     let info_bytes = info.raw_bytes();
     let hash = Sha1::digest(info_bytes);
     let info_hash = hex::encode(hash);
 
+    // Get piece length and piece hashes
+    let piece_length = info
+        .get("piece length")
+        .and_then(|v| v.as_integer())
+        .ok_or("Missing 'info.piece length' key")?;
+
+    let pieces = info
+        .get("pieces")
+        .and_then(|v| v.as_bytes())
+        .ok_or("Missing 'info.pieces' key")?;
+
+    // Parse piece hashes (each hash is 20 bytes)
+    let piece_hashes: Vec<String> = pieces
+        .chunks(20)
+        .map(|chunk| hex::encode(chunk))
+        .collect();
+
     println!("Tracker URL: {}", announce);
     println!("Length: {}", length);
     println!("Info Hash: {}", info_hash);
+    println!("Piece Length: {}", piece_length);
+    println!("Number of pieces: {}", piece_hashes.len());
+    println!("Piece hashes:");
+    for (i, hash) in piece_hashes.iter().enumerate() {
+        println!("  {}: {}", i, hash);
+    }
     Ok(())
 }

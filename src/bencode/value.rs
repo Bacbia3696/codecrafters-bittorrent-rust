@@ -35,6 +35,14 @@ impl BencodeValue {
         }
     }
 
+    /// Get the raw bytes if this is a String variant (for binary data)
+    pub fn as_bytes(&self) -> Option<&[u8]> {
+        match &self.kind {
+            BencodeKind::String(bytes) => Some(bytes),
+            _ => None,
+        }
+    }
+
     /// Get the integer value if this is an Integer variant
     pub fn as_integer(&self) -> Option<i64> {
         match &self.kind {
