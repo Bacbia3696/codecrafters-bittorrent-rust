@@ -18,14 +18,20 @@ fn main() {
         "peers" => commands::peers(&args[2]),
         "handshake" => {
             if args.len() < 4 {
-                eprintln!("Usage: {} handshake <torrent_file> <peer_ip:peer_port>", args[0]);
+                eprintln!(
+                    "Usage: {} handshake <torrent_file> <peer_ip:peer_port>",
+                    args[0]
+                );
                 std::process::exit(1);
             }
             commands::handshake(&args[2], &args[3])
         }
         "download_piece" => {
             if args.len() < 5 {
-                eprintln!("Usage: {} download_piece -o <output> <torrent_file> <piece_index>", args[0]);
+                eprintln!(
+                    "Usage: {} download_piece -o <output> <torrent_file> <piece_index>",
+                    args[0]
+                );
                 std::process::exit(1);
             }
             // Parse: download_piece -o <output> <torrent> <piece_index>
@@ -40,6 +46,20 @@ fn main() {
                 std::process::exit(1);
             });
             commands::download_piece(torrent_path, output_path, piece_index)
+        }
+        "download" => {
+            if args.len() < 4 {
+                eprintln!("Usage: {} download -o <output> <torrent_file>", args[0]);
+                std::process::exit(1);
+            }
+            // Parse: download -o <output> <torrent>
+            if args[2] != "-o" {
+                eprintln!("Expected -o flag");
+                std::process::exit(1);
+            }
+            let output_path = &args[3];
+            let torrent_path = &args[4];
+            commands::download(torrent_path, output_path)
         }
         _ => {
             println!("unknown command: {}", command);
